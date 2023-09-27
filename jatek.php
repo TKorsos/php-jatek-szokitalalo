@@ -11,17 +11,35 @@ if (!isset($_SESSION['tomb'])) {
 $megfejtendo = ['alma', 'barack', 'körte', 'dió', 'cseresznye', 'málna'];
 $szorzo = 0;
 $szo = '';
+$valtozo = '';
 
 function nyerheto()
 {
-    $randomertek = round(rand(1, 10)) * 100;
+    // csőd bevezetése - rand(1, 10) helyett rand(0, 10)
+    $randomertek = round(rand(0, 10)) * 100;
     return $randomertek;
 }
 
 if (isset($_POST["spin"])) {
-    $_SESSION["kiirtertek"] = nyerheto();
+    $valtozo = nyerheto();
+
+    // feltétel csődhöz  ~ 20230927
+    if ($valtozo > 0) {
+        $_SESSION["kiirtertek"] = $valtozo;
+    } else {
+        $_SESSION["kiirtertek"] = 'Csőd';
+        $_SESSION["osszeg"] = 0;
+    }
 
     header('location: ' . $_SERVER['PHP_SELF']);
+}
+
+
+// nyerési feltételhez ~ 20230927
+foreach ($_SESSION["tomb"] as $tomb) {
+    if (mb_strlen(trim($tomb), 'UTF-8') !== 0) {
+        $ures += 1;
+    }
 }
 
 function megfejtes($megfejtendo)
@@ -34,10 +52,11 @@ function megfejtes($megfejtendo)
 // start gomb lenyomásával kiválaszt véletlenszerűen egy szót a tömbből amit ki kell találni
 if (isset($_POST["start"])) {
     $szo = megfejtes($megfejtendo);
-    
+
     if (mb_strlen(trim($szo), 'UTF-8') !== 0) {
+        // preg_split metódus alkalmazása  ~ 20230918
         $container = preg_split('//u', $szo, -1, PREG_SPLIT_NO_EMPTY);
-        for($i = 0; $i < count($container); $i++) {
+        for ($i = 0; $i < count($container); $i++) {
             $_SESSION["szo"][$i] = $container[$i];
         }
     }
@@ -49,8 +68,7 @@ if (isset($_POST["start"])) {
     header('location: ' . $_SERVER['PHP_SELF']);
 }
 
-// ellenőrzésnél a $_SESSION["tomb"]-öt kéne ellenőrizni hogy nincs -e benne üres string? akkor meg van fejtve?
-
+// ellenőrzés hogy volt e küldés post-tal majd hogy milyen gomb lett lenyomva és ha megfelelő akkor "írja ki" a megfelelő helyre
 if ($_SERVER["REQUEST_METHOD"] === 'POST') {
 
     if ($_POST["data"] === "Reset") {
@@ -108,10 +126,18 @@ if ($_SERVER["REQUEST_METHOD"] === 'POST') {
                     // pörget gomb
                     echo '<section class="row gy-3"><article class="col-auto"><div class="p-2"><input type="submit" class="form-control" name="spin" id="spin" value="Pörget"></div></article></section>';
 
+                    echo '<hr>';
+
                     // megjelenítő section
                     echo '<section class="row gy-3"><article class="col-auto"><div class="p-2">';
-                    // a nyerhető összeg megjelenítése
-                    echo '<h3>A nyerhető összeg: ' . ($_SESSION["kiirtertek"] ?? '') . '</h3>';
+                    // a nyerhető összeg megjelenítése ~ 20230927
+                    if (isset($_SESSION["kiirtertek"]) && $_SESSION["kiirtertek"] > 0) {
+                        echo '<h3>A nyerhető összeg: ' . ($_SESSION["kiirtertek"] ?? '') . '</h3>';
+                    } elseif ($_SESSION["kiirtertek"] === 'Csőd') {
+                        echo '<h3>A nyerhető összeg: ' . ($_SESSION["kiirtertek"] ?? '') . '</h3>';
+                    } else {
+                        echo '<h3>A nyerhető összeg: </h3>';
+                    }
 
                     // a végösszeg megjelenítése
                     echo '<h3>A végösszeg: ' . ($_SESSION["osszeg"] ?? '') . '</h3>';
@@ -138,12 +164,20 @@ if ($_SERVER["REQUEST_METHOD"] === 'POST') {
                         echo '</section>';
                     }
 
-                    // csak tesztre a $szo helyett a lenti feltételben!
-                    // $_SESSION["szo"] = ['a', 'l', 'm', 'a'];
+                    echo '<hr>';
+
                     $tomb = $_SESSION["tomb"];
 
+                    // a megfejtett betűk kiíratása
                     for ($i = 0; $i < count($tomb); $i++) {
                         echo '<li>' . $tomb[$i] . '</li>';
+                    }
+
+                    echo '<hr>';
+
+                    // siker esetén üzenet kiíratása ~ 20230927
+                    if (isset($ures) && $ures === count($_SESSION["szo"])) {
+                        echo '<h2>Nyertél!</h2><h3>A végső nyereményed: ' . ($_SESSION["osszeg"] ?? '') . '</h3>';
                     }
 
                     ?>
